@@ -59,6 +59,5 @@ def lesson_19 ():
       print(f"Tensor Multiplication: {tensor * 100}")
       print(f"or Tensor Multiplication: {torch.mul(tensor, 100)}")
 
-match
 
 print(None)
