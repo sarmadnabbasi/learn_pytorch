@@ -1,13 +1,16 @@
 #pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
+#### Imports
 import argparse
 from time import process_time, process_time_ns
 import time
 import torch
+import numpy as np
+#####################################
 
 #### Arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--lesson", help="Lesson number from youtube video", type= int, default=25)
+parser.add_argument("--lesson", help="Lesson number from youtube video", type= int, default=29)
 parser.add_argument("-v","--verbosity", help="increase output verbosity",
                     action="store_true")
 args = parser.parse_args()
@@ -17,7 +20,9 @@ lesson_number = args.lesson
 
 ###### Utilities ######
 ## Setup device ##
-print(torch.cuda.get_device_name(0))
+print(f"{torch.cuda.get_device_name(0)}\n\n")
+
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 cuda0 = torch.device('cuda:0')
 #######################################
 
@@ -142,13 +147,85 @@ def lesson_25 ():
       print("Changing z> z[:, 0] = 5)")
       z[:, 0] = 5
       print(f"x: {x}")
-      print("__________________________________\n\n")
 
       print("\n### Stack -- tensor.stack()")
       print(f"x: {x}")
       x_stacked = torch.stack([x,x,x,x,x], dim=0)
       print(f"Stacked 5 times\ntorch.stack([x,x,x,x,x], dim=0): {x_stacked}")
 
+      print("__________________________________\n\n")
+
+##### 26. Squeezing, unsqueezing and permuting tensors
+def lesson_26():
+      x = torch.arange(1., 10)
+      print(f"tensor: {x}, shape: {x.shape}")
+      x = x.reshape((1,-1))
+      print(f"tensor.reshape(1,-1): {x}, shape: {x.shape}")
+      print("\n### Squeeze -- tensor.squeeze() -- remove extra '1' dimension")
+      print(f"tensor.squeeze(): {x.squeeze()}, shape: {x.squeeze().shape}")
+
+      x = x.squeeze()
+      print("\n### Unsqueeze -- tensor.unsqueeze(dim=) -- add extra '1' dimension")
+      print(f"tensor.unsqueeze(): {x.unsqueeze(dim=1)}, shape: {x.unsqueeze(dim=1).shape}")
+
+      print("\n### Permute -- tensor.permute() -- rearranges the dimensions of tensor in a specific order and gives view")
+      x_original = torch.rand(size=(224, 224, 3)) #random for image data [height, width, channel]
+      print(f"example image tensor shape: {x_original.shape}")
+      x_permuted = x_original.permute(2,0,1)
+      print(f"swap color channel to 1st dimension> tensor.permute(2, 0, 1).shape: {x_permuted.shape}")
+
+
+      print("__________________________________\n\n")
+
+##### 27. Selecting data (indexing)
+def lesson_27():
+      x = torch.arange(1, 10).reshape(1,3,3)
+      print(f"tensor: {x}, shape: {x.shape}")
+      print(f"tensor[0]: {x[0]}")
+      print(f"tensor[:,:,0]: {x[:,:,0]} >> : is used for select all")
+      print("__________________________________\n\n")
+
+##### 28. Pytorch and Numpy #####
+def lesson_28():
+      print("Data in NumPy, want in PyTorch tensor -> torch.from_numpy(ndarray)\n"
+            "PyTorch tensor -> NumPy -> torch.Tensor.numpy()")
+      print("\n### NumPy array to tensor")
+      array = np.arange(1., 10.)
+      print(f"NumPy array: np.arange(1., 10.) = {array}")
+      tensor = torch.from_numpy(array)
+      print(f"to Tensor: torch.from_numpy(array) = {tensor}")
+      print(f"to NumPy: tensor.numpy() = {tensor.numpy()}")
+      print("Note: NumPy detault datatype is float64 and PyTorch's default datatype is float32")
+      print("__________________________________\n\n")
+
+##### 29. PyTorch reproducibility (taking the random out of random) #####
+def lesson_29():
+      print("##### 29. PyTorch reproducibility (taking the random out of random) #####\n")
+      print("To reduce the randomness in neural networks and pytorch comes the concept of a random seed")
+
+      random_tensor_A = torch.rand(3, 4)
+      random_tensor_B = torch.rand(3, 4)
+      print(f"random_tensor_A = torch.rand(3,4): {random_tensor_A}")
+      print(f"random_tensor_B = torch.rand(3,4) {random_tensor_B}")
+      print(f"\nCheck if equal> random_tensor_A == random_tensor_B: {random_tensor_A == random_tensor_B} ")
+
+      RANDOM_SEED = 42
+      print(f"\nRANDOM_SEED: {RANDOM_SEED}")
+
+      print(f"\nSet random seed> torch.manual_seed(RANDOM_SEED)")
+      torch.manual_seed(RANDOM_SEED)
+      random_tensor_C = torch.rand(3, 4)
+      print(f"random_tensor_C = torch.rand(3,4): {random_tensor_C}")
+
+      print(f"\nSet random seed> torch.manual_seed(RANDOM_SEED)")
+      torch.manual_seed(RANDOM_SEED)
+      random_tensor_D = torch.rand(3, 4)
+      print(f"random_tensor_D = torch.rand(3,4): {random_tensor_D}")
+
+      print(f"\nCheck if equal> random_tensor_C == random_tensor_D: {random_tensor_C == random_tensor_D} ")
+
+      print("Note: You have to call torch.manual_seed before every rand tensor initialization")
+      print("__________________________________\n\n")
 
 if __name__ == "__main__":
       func = "lesson_"+str(args.lesson)
