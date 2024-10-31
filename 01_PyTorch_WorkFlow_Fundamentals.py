@@ -5,9 +5,13 @@ import argparse
 from time import process_time, process_time_ns
 import time
 import torch
+import torch.optim
+from jinja2.optimizer import optimize
 from matplotlib.pyplot import legend
 from networkx.algorithms.bipartite import color
-from torch import nn
+from pkg_resources import require
+from sympy.integrals.intpoly import hyperplane_parameters
+from torch import nn, inference_mode
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -15,7 +19,7 @@ from pathlib import Path
 
 #### Arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--lesson", help="Lesson number from youtube video", type= int, default=48)
+parser.add_argument("--lesson", help="Lesson number from youtube video", type= int, default=54)
 parser.add_argument("-v","--verbosity", help="increase output verbosity",
                     action="store_true")
 args = parser.parse_args()
@@ -270,6 +274,7 @@ def lesson_45():
 
 
       with torch.inference_mode():
+
             plot_predictions(X_train, y_train, X_test, y_test, model_0(X_test))
 
       # Plot the loss curves
@@ -294,17 +299,250 @@ def lesson_51():
       print("2. 'torch.load()' - Allows you to load a saved PyTorch object")
       print("3. 'torch.nn.Module.load_state_dict() - this allows to load a model's saved state dictionary")
 
+      X_train, y_train, X_test, y_test = make_lr_reg_data_set()
+
+      plot_predictions(X_train, y_train, X_test, y_test)
+
+      #RANDOM_SEED = 42
+      #torch.manual_seed(RANDOM_SEED)
+      #model_0 =LinRegModel()
+
+      RANDOM_SEED = 42
+      torch.manual_seed(RANDOM_SEED)
+      model_0 = LinearRegressionModel()
+
+
+      loss_fn = nn.L1Loss()
+
+      optimizer = torch.optim.SGD(params=model_0.parameters(), lr=0.01)
+
+      epochs = 100
+
+      for epoch in range(epochs):
+            model_0.train()
+
+            y_pred = model_0.forward(X_train)
+
+            loss = loss_fn(y_pred, y_train)
+            print(f"Train Loss : {loss}")
+
+            optimizer.zero_grad()
+
+            loss.backward()
+
+            optimizer.step()
+
+            model_0.eval()
+
+      with torch.inference_mode():
+            loss_test = loss_fn(model_0.forward(X_test), y_test)
+            y_preds = model_0.forward(X_test)
+            plot_predictions(X_train, y_train, X_test, y_test, predictions=y_preds)
+            print(f"Test Loss : {loss_test}")
+
       print("\n## Saving our PyTorch Model")
 
       print("1. Create Models directiory")
       MODEL_PATH = Path("models")
       MODEL_PATH.mkdir(parents = True, exist_ok = True)
 
+      print("2. Create model save path")
+      MODEL_NAME = "01_pytorch_workflow_model_o.pth"
+      MODEL_SAVE_PATH = MODEL_PATH / MODEL_NAME
+
+      print("3. Save the Model state.dict()")
+      print("torch.save(MODEL_SAVE_PATH)")
+      torch.save(obj=model_0.state_dict(), f=MODEL_SAVE_PATH)
+
+      print("\n## Loading Saved Model ")
+
+      print("Create new model, model_1 =LinRegModel()")
+      model_1 = LinRegModel()
+      print(f"Initialized random state dict model_1.state_dict()= {model_1.state_dict()}")
+      print(f"Load saved state_dict(), model_1.load_state_dict(torch.load(f=MODEL_SAVE_PATH)")
+      model_1.load_state_dict(torch.load(f=MODEL_SAVE_PATH, weights_only=True))
+      print(f"Loaded state dict model_1.state_dict()= {model_1.state_dict()}")
+
+      model_1.eval()
+      with torch.inference_mode():
+            model_1_preds = model_1.forward(X_test)
+
+      print("\n Check if loaded model predictions are same as previous model")
+      print("Make predcitions = model_1_preds = model_1.forward(X_test)")
+      print(f"Check > y_preds == model_1_preds : {model_1_preds == y_preds}")
+
+      MODEL_FULL_NAME = "Model_0.pt"
+      MODEL_SAVE_PATH = MODEL_PATH / MODEL_FULL_NAME
+      torch.save(obj=model_0, f=MODEL_SAVE_PATH)
+
+      a = torch.load(f=MODEL_SAVE_PATH, weights_only=False)
+
+      print("__________________________________\n\n")
 
 
+def make_lr_reg_data_set(weight = 0.7, bias = 0.3, train_split = 0.8):
+
+      X = torch.arange(0, 1, 0.02)
+      y = X*weight + bias
+
+      X_train = X[:int(len(X)*train_split)]; X_test = X[int(len(X)*train_split):]
+      y_train = y[:int(len(y)*train_split)]; y_test = y[int(len(y)*train_split):]
+
+      return X_train, y_train, X_test, y_test
+
+
+class LinRegModel(nn.Module):
+      def __init__(self):
+          super().__init__()
+          self.weights = nn.Parameter(torch.rand(1,
+                                                 requires_grad=True,
+                                                 dtype=torch.float32,
+                                                 ))
+          self.bias = nn.Parameter(torch.rand(1,
+                                                 requires_grad=True,
+                                                 dtype=torch.float32,
+                                                 ))
+
+      def forward(self, x:torch.tensor) -> torch.tensor:
+            return x*self.weights + self.bias
+
+###### 54. Putting everything together ######
+def lesson_54():
+      print("###### 54. Putting everything together ######")
+
+      train_loss_list = []
+      test_loss_list = []
+      epoch_list = []
+
+      print("### 1. Make data set")
+
+      weight = 0.7
+      bias = 0.3
+      X = torch.arange(0, 1, 0.02).unsqueeze(dim=1)
+      y = weight*X + bias
+
+      split = 0.8
+      X_train = X[:int(len(X)*split)]; y_train=y[:int(len(X)*split)]
+      X_test = X[int(len(X)*split):];  y_test = y[int(len(X)*split):]
+
+      print ("Plotting Dataset")
+      plt.plot(X_train, y_train, color="b", label = "training data set")
+      plt.plot(X_test, y_test, color="g", label = "training data set")
+      plt.title("Raw data")
+      plt.legend()
+      plt.show()
+
+      print ("### 2. initialize Model")
+
+      RANDOM_SEED = 42
+      torch.manual_seed(RANDOM_SEED)
+      model_0 = LinRegModeV2()
+
+      print(f"model_0.state_dict() : {model_0.state_dict()}")
+      print("Make predictions with initialized weights")
+      y_preds = model_0.forward(X_test)
+      with torch.inference_mode():
+            plt.plot(X_train, y_train, color="b", label="training data set")
+            plt.plot(X_test, y_test, color="g", label="training data set")
+            plt.plot(X_test, y_preds.detach().numpy(), color="r", label="predictions")
+            plt.title("Raw data")
+            plt.legend()
+            plt.show()
+
+
+
+      print("### 3. Running Model on GPU")
+      print(f"Check where the model is assigned to next(model_0.parameters()).device : {next(model_0.parameters()).device}")
+      print(f"Change to GPU model_0.to(device)")
+      model_0.to(device)
+      print(f"Check where the model is assigned to next(model_0.parameters()).device : {next(model_0.parameters()).device}")
+
+
+      print("### 4. Training the Model")
+      print("1. define hyperparameters")
+      epochs = 1000
+      learning_rate = 0.01
+      print("2. define loss function")
+      loss_fn = nn.L1Loss()
+      print("3. define optimizer")
+      optimizer = torch.optim.SGD(params=model_0.parameters(), lr = learning_rate)
+
+      print("4. training loop")
+      torch.manual_seed(RANDOM_SEED)
+
+      X_train = X_train.to(device)
+      y_train = y_train.to(device)
+      X_test = X_test.to(device)
+      y_test = y_test.to(device)
+
+      for epoch in range(epochs):
+          model_0.train()
+
+          y_preds = model_0(X_train)
+          loss = loss_fn(y_preds, y_train)
+          optimizer.zero_grad()
+          loss.backward()
+          optimizer.step()
+          model_0.eval()
+
+          with torch.inference_mode():
+              epoch_list.append(epoch)
+              train_loss_list.append(loss.cpu())
+
+              y_preds = model_0(X_test)
+              test_loss = loss_fn(y_preds, y_test)
+              test_loss_list.append(test_loss.cpu())
+
+              print(f"Epoch: {epoch} --- Train Loss: {loss} --- Test Loss: {test_loss}")
+
+      y_preds = model_0.forward(X_test)
+      y_preds = y_preds.cpu()
+      X_train = X_train.cpu()
+      X_test= X_test.cpu()
+      y_train = y_train.cpu()
+      y_test = y_test.cpu()
+      #epoch_list = epoch_list.cpu()
+      #train_loss_list = train_loss_list.cpu()
+      #test_loss_list = test_loss_list.cpu()
+
+      with torch.inference_mode():
+          plt.plot(X_train, y_train, color="b", label="training data set")
+          plt.plot(X_test, y_test, color="g", label="training data set")
+          plt.plot(X_test, y_preds, color="r", label="predictions")
+          plt.title("Raw data")
+          plt.legend()
+          plt.show()
+
+          plt.plot(epoch_list, train_loss_list, color = 'b', label="Training loss")
+          plt.plot(epoch_list, test_loss_list, color = 'r', label="Test loss")
+          plt.title("Training curve")
+          plt.legend()
+          plt.show()
+
+
+      print("5. Saving model")
+
+      MODEL_PATH = Path("models")
+      MODEL_PATH.mkdir(parents = True, exist_ok = True)
+
+      MODEL_NAME = "model_0.pth"
+      MODEL_SAVE_PATH = MODEL_PATH / MODEL_NAME
+
+      print(f"Saving Model to: {MODEL_SAVE_PATH}]")
+      torch.save(obj = model_0.state_dict(),
+                 f=MODEL_SAVE_PATH)
 
 
       print("__________________________________\n\n")
+
+
+class LinRegModeV2(nn.Module):
+      def __init__(self):
+          super().__init__()
+          self.linear_layer = nn.Linear(in_features=1, out_features=1)
+
+      def forward(self, x:torch.Tensor) -> torch.Tensor:
+            return self.linear_layer(x)
 
 
 if __name__ == "__main__":
