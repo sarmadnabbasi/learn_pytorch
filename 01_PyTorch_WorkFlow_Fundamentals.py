@@ -111,7 +111,7 @@ class LinearRegressionModel(nn.Module):
                                                    requires_grad=True,
                                                    dtype=torch.float32))
 
-            # Forward method to define the computation in the model
+      # Forward method to define the computation in the model
       def forward(self, x: torch.Tensor) -> torch.tensor:
                   return self.weights*x +self.bias #Linear regression formula
 
